@@ -10,7 +10,7 @@ services:
       - key: APP_DEBUG
         value: "false"
       - key: APP_KEY
-        generateValue: true
+        value: ""
       - key: APP_URL
         value: https://sistema-facturacion.onrender.com
       - key: LOG_CHANNEL
