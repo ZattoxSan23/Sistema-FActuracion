@@ -21,7 +21,9 @@ RUN apk add --no-cache \
     linux-headers \
     postgresql-dev \
     libpq \
-    openssl-dev
+    openssl-dev \
+    nginx \
+    supervisor
 
 # Limpiar caché
 RUN apk cache clean
@@ -38,19 +40,40 @@ RUN pecl install xdebug \
 # Instalar Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Crear usuario para evitar permisos de root
+# Crear usuario
 RUN addgroup -g ${GID} laravel && \
     adduser -u ${UID} -G laravel -D laravel
 
-# Configurar directorio de trabajo
+# Directorio de trabajo
 WORKDIR /var/www/html
 
-# Configurar git para composer
-RUN git config --global --add safe.directory /var/www/html
+# Copiar configuraciones
+COPY docker/nginx/nginx.conf /etc/nginx/nginx.conf
+COPY docker/supervisord.conf /etc/supervisord.conf
 
-# Cambiar al usuario laravel
-USER laravel
+# Permisos de carpetas
+RUN mkdir -p /var/www/html/storage/framework/cache/data \
+                /var/www/html/storage/framework/sessions \
+                /var/www/html/storage/framework/views \
+                /var/www/html/storage/logs \
+                /var/www/html/bootstrap/cache \
+                /var/run/nginx \
+                /var/log/nginx && \
+    chown -R laravel:laravel /var/www/html && \
+    chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
-EXPOSE 9000
+# Cambiar a root para construir
+USER root
 
-CMD ["php-fpm"]
+# Instalar dependencias
+COPY --chown=laravel:laravel composer.json composer.lock* ./
+RUN composer install --no-dev --optimize-autoloader --no-interaction || true
+
+# Copiar el resto
+COPY --chown=laravel:laravel . /var/www/html
+
+# Exponer puerto
+EXPOSE 8080
+
+# Iniciar con supervisord (nginx + php-fpm)
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
