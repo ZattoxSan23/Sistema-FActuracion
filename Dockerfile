@@ -33,10 +33,6 @@ RUN docker-php-ext-install pdo pdo_pgsql pgsql bcmath intl zip gd xml opcache \
     && pecl install redis \
     && docker-php-ext-enable redis
 
-# Instalar Xdebug (solo dev)
-RUN pecl install xdebug \
-    && docker-php-ext-enable xdebug || true
-
 # Instalar Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
@@ -50,30 +46,34 @@ WORKDIR /var/www/html
 # Copiar configuraciones
 COPY docker/nginx/nginx.conf /etc/nginx/nginx.conf
 COPY docker/supervisord.conf /etc/supervisord.conf
+COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 
-# Permisos de carpetas
+# Permisos
 RUN mkdir -p /var/www/html/storage/framework/cache/data \
                 /var/www/html/storage/framework/sessions \
                 /var/www/html/storage/framework/views \
                 /var/www/html/storage/logs \
                 /var/www/html/bootstrap/cache \
                 /var/run/nginx \
-                /var/log/nginx && \
+                /var/log/nginx \
+                /var/log/supervisor && \
+    chmod +x /usr/local/bin/entrypoint.sh && \
     chown -R laravel:laravel /var/www/html && \
     chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Cambiar a root para construir
-USER root
-
-# Instalar dependencias
+# Instalar dependencias PHP
 COPY --chown=laravel:laravel composer.json composer.lock* ./
-RUN composer install --no-dev --optimize-autoloader --no-interaction || true
+USER laravel
+RUN composer install --no-dev --optimize-autoloader --no-interaction
 
 # Copiar el resto
 COPY --chown=laravel:laravel . /var/www/html
 
+# Volver a root para supervisord
+USER root
+
 # Exponer puerto
 EXPOSE 8080
 
-# Iniciar con supervisord (nginx + php-fpm)
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
+# Script de inicio
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
