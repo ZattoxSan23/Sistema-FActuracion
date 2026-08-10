@@ -57,7 +57,7 @@ EOF
 
 echo "Archivo .env creado."
 
-# Esperar a que PostgreSQL esté listo (usando variables del sistema)
+# Esperar a que PostgreSQL esté listo
 echo "Esperando PostgreSQL en ${DB_HOST}:${DB_PORT}..."
 i=0
 until php -r "
@@ -66,21 +66,12 @@ try {
     new PDO(\$dsn, getenv('DB_USERNAME'), getenv('DB_PASSWORD'));
     exit(0);
 } catch (Exception \$e) {
-    fwrite(STDERR, 'Error: '.\$e->getMessage().PHP_EOL);
     exit(1);
 }
 " 2>&1; do
     i=$((i+1))
     if [ $i -gt 30 ]; then
-        echo "ERROR: PostgreSQL no responde. Último error:"
-        php -r "
-        \$dsn = 'pgsql:host='.getenv('DB_HOST').';port='.getenv('DB_PORT').';dbname='.getenv('DB_DATABASE');
-        try {
-            new PDO(\$dsn, getenv('DB_USERNAME'), getenv('DB_PASSWORD'));
-        } catch (Exception \$e) {
-            fwrite(STDERR, \$e->getMessage().PHP_EOL);
-        }
-        " 2>&1
+        echo "ERROR: PostgreSQL no responde."
         exit 1
     fi
     sleep 3
@@ -89,7 +80,11 @@ echo "PostgreSQL listo."
 
 # Ejecutar migraciones
 echo "Ejecutando migraciones..."
-php artisan migrate --force --no-interaction 2>&1 | head -20
+php artisan migrate --force --no-interaction 2>&1 | tail -10
+
+# Ejecutar seeders (solo si las tablas están vacías)
+echo "Ejecutando seeders..."
+php artisan db:seed --force --no-interaction 2>&1 | tail -20
 
 # Crear enlace de storage
 php artisan storage:link 2>/dev/null || true
