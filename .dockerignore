@@ -1,0 +1,15 @@
+node_modules
+vendor
+.git
+.gitignore
+.env
+.idea
+.vscode
+storage/logs/*
+storage/framework/cache/data/*
+storage/framework/sessions/*
+storage/framework/views/*
+!storage/**/.gitkeep
+bootstrap/cache/*
+tests
+README.md
