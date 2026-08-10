@@ -43,12 +43,10 @@ RUN addgroup -g ${GID} laravel && \
 # Directorio de trabajo
 WORKDIR /var/www/html
 
-# Copiar configuraciones
-COPY docker/nginx/nginx.conf /etc/nginx/nginx.conf
-COPY docker/supervisord.conf /etc/supervisord.conf
-COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+# Copiar TODO el código primero (incluyendo artisan)
+COPY --chown=laravel:laravel . /var/www/html
 
-# Permisos
+# Crear carpetas necesarias
 RUN mkdir -p /var/www/html/storage/framework/cache/data \
                 /var/www/html/storage/framework/sessions \
                 /var/www/html/storage/framework/views \
@@ -56,24 +54,26 @@ RUN mkdir -p /var/www/html/storage/framework/cache/data \
                 /var/www/html/bootstrap/cache \
                 /var/run/nginx \
                 /var/log/nginx \
-                /var/log/supervisor && \
-    chmod +x /usr/local/bin/entrypoint.sh && \
+                /var/log/supervisor
+
+# Permisos
+RUN chmod +x /var/www/html/docker/entrypoint.sh && \
     chown -R laravel:laravel /var/www/html && \
     chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Instalar dependencias PHP
-COPY --chown=laravel:laravel composer.json composer.lock* ./
+# Instalar dependencias PHP (ahora artisan SÍ existe)
 USER laravel
 RUN composer install --no-dev --optimize-autoloader --no-interaction
 
-# Copiar el resto
-COPY --chown=laravel:laravel . /var/www/html
-
 # Volver a root para supervisord
 USER root
+
+# Copiar configuraciones
+COPY docker/nginx/nginx.conf /etc/nginx/nginx.conf
+COPY docker/supervisord.conf /etc/supervisord.conf
 
 # Exponer puerto
 EXPOSE 8080
 
 # Script de inicio
-ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+ENTRYPOINT ["/var/www/html/docker/entrypoint.sh"]
