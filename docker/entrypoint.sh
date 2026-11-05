@@ -80,19 +80,33 @@ echo "PostgreSQL listo."
 
 # Ejecutar migraciones
 echo "Ejecutando migraciones..."
-php artisan migrate --force --no-interaction 2>&1 | tail -10
+php artisan migrate --force --no-interaction
 
-# Ejecutar seeders (solo si las tablas están vacías)
-echo "Ejecutando seeders..."
-php artisan db:seed --force --no-interaction 2>&1 | tail -20
+# Demo seeders are not idempotent: never run them on every restart.
+if [ "${SEED_DEMO_DATA:-false}" = "true" ]; then
+    HAS_USERS="$(php -r '
+        require "/var/www/html/vendor/autoload.php";
+        $app = require "/var/www/html/bootstrap/app.php";
+        $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+        echo App\Models\User::query()->exists() ? "yes" : "no";
+    ')"
+    if [ "$HAS_USERS" = "no" ]; then
+        echo "Inicializando datos de demostración..."
+        php artisan db:seed --force --no-interaction
+    else
+        echo "La base ya tiene usuarios; no se repiten los seeders."
+    fi
+else
+    echo "Seeders deshabilitados. SEED_DEMO_DATA=true habilita la inicialización demo."
+fi
 
 # Crear enlace de storage
 php artisan storage:link 2>/dev/null || true
 
 # Optimizar
-php artisan config:cache 2>&1 | tail -3
-php artisan route:cache 2>&1 | tail -3
-php artisan view:cache 2>&1 | tail -3
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
 
 echo "=== Aplicación lista ==="
 
