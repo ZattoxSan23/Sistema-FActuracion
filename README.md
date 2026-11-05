@@ -1,6 +1,39 @@
+# Estado de mantenimiento
+
+Este repositorio es un prototipo de demostración. La existencia de módulos SUNAT, XML y POS no acredita cumplimiento tributario ni pruebas de integración contra los servicios reales.
+
+## Arranque Docker
+
+El entrypoint ejecuta migraciones y optimización sin tuberías a `tail`: un fallo ahora detiene el contenedor en vez de quedar oculto por el código de salida del último comando.
+
+Los seeders ya no corren en cada reinicio. Para una base **nueva de demostración**, configura `SEED_DEMO_DATA=true`. Se inicializan solo si no existen usuarios; si ya hay usuarios se omiten. La comprobación evita la repetición habitual al reiniciar, pero no reemplaza un bloqueo de despliegue para arranques simultáneos. Mantén una sola instancia durante la inicialización.
+
+No ejecutes seeders sobre una base de uso real: crean cuentas conocidas y ventas simuladas. No hay que borrar tablas para actualizar la aplicación.
+
+## Configuración que debes revisar
+
+Mantén una `APP_KEY` persistente en el hosting. La generación automática actual cuando falta la variable cambia la clave entre reinicios y puede invalidar cookies o datos cifrados. El servicio también necesita conexiones PostgreSQL válidas, almacenamiento persistente para archivos y configuración SUNAT independiente por entorno.
+
+## Hallazgos de lógica pendientes
+
+En `PosController::storeVenta`, los descuentos de ítem se guardan pero los acumulados de operaciones se calculan desde subtotales previos al descuento. El descuento global se registra sin incorporarse al total. El servidor también necesita comprobar la cobertura de pagos y la disponibilidad de stock bajo concurrencia.
+
+Estos flujos requieren pruebas contables y transaccionales antes de considerarse listos. No se modificaron importes ni comprobantes existentes. Queda definir claramente precios con/sin IGV, redondeos, descuentos, pagos parciales y reglas por tipo de afectación.
+
+## Validación
+
+```sh
+sh -n docker/entrypoint.sh
+composer validate
+```
+
+Después de configurar una base de prueba: probar primer arranque, reinicio sin duplicar seeders, migración fallida y venta con distintos medios de pago. No hay todavía una suite de integración que acredite los módulos descritos abajo.
+
+---
+
 # Sistema de Facturación Electrónica
 
-Sistema completo de facturación electrónica con integración SUNAT para Perú, desarrollado en **Laravel 11 + PostgreSQL + Docker**.
+Prototipo de facturación electrónica con módulos de integración SUNAT para Perú, desarrollado en **Laravel 11 + PostgreSQL + Docker**.
 
 ## 🎯 Características
 
